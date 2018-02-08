@@ -23,8 +23,8 @@ The goals / steps of this project are the following:
 [image2]: ./output_images/undistortion_test5.jpg "Road Transformed"
 [image3]: ./output_images/binary_image.png "Binary Example"
 [image4]: ./output_images/warped_image.png "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
+[image5]: ./output_images/LaneLines.png "Fit Visual"
+[image6]: ./output_images/Lane_Detected.png "Output"
 [video1]: ./project_video.mp4 "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
@@ -43,7 +43,7 @@ You're reading it!
 
 #### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
 
-The code for this step is contained in the file "calibrate.py".  
+The code for this step is contained in the file "pipeline.py".  
 
 I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `obj_p` is just a replicated array of coordinates, and `obj_points` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `img_points` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
 
@@ -60,13 +60,16 @@ Now that I have the camera matrix and the distortion coefficients from the calib
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-The code for this part is in the file "pipeline.py" in the function "get_binary_image". I depended only on thresholding colors (although the code for boundaries is in the same file but not used). I depended on thresholding the R channed of the RBG color space image as well as the S channel of the HLS color space. The result of the two thresholding operations are then anded. Here's an example of my output for this step.
+The code for this part is in the file "pipeline.py" in the function "get_binary_image". I depended on two things:
+1- A threshold on the magnetude of the gradient
+2- Converting the image to the HLS color space and thresholding the S channel
+The result of the two thresholding operations are then ORed. Here's an example of my output for this step.
 
 ![alt text][image3]
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
-The code for my perspective transform includes a function called `warper()`, which appears in the file `pipeline.py`.  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+The code for my perspective transform includes two class functions: 'Lane.set_warp_matrix', and 'Lane.warper()'. The two functions appear in the file `pipeline.py`.  I chose the hardcode the source and destination points in the following manner:
 
 ```python
 src = np.float32(
@@ -76,20 +79,20 @@ src = np.float32(
          [865, 560]])
 
     dst = np.float32(
-        [[(img_size[0] / 4), 0.75*img_size[1]],
+        [[(img_size[0] / 4), 0.85*img_size[1]],
          [(img_size[0] / 4), img_size[1]],
          [(img_size[0] * 3 / 4), img_size[1]],
-         [(img_size[0] * 3 / 4), 0.75*img_size[1]]])
+         [(img_size[0] * 3 / 4), 0.85*img_size[1]]])
 ```
 
 This resulted in the following source and destination points:
 
 | Source        | Destination   | 
 |:-------------:|:-------------:| 
-| 429, 560      | 320, 540      | 
+| 429, 560      | 320, 612      | 
 | 236, 690      | 320, 720      |
 | 1073, 690     | 960, 720      |
-| 865, 560      | 960, 540      |
+| 865, 560      | 960, 612      |
 
 I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
 
@@ -97,17 +100,26 @@ I verified that my perspective transform was working as expected by drawing the 
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+This was done in two functions:
+1- 'Lane.__get_line_points_from_scratch()'. This is used to find the Lane lines from scratch without any previous knowledge of where the lanes should be.
+2- 'Lane.__update_line_points()'. This is used when there is a previous knowledge of the lane lines.
+
+Both functions take the binary image as an input. The first function uses a histogram to find a starting point to search for the lanes. Starting from these points, a square defining the area of search is used and updated to follow the lane lines from the bottom of the image to the top of it.
+
+The seacond function uses the previously determined lane lines as a starting point and searches for the lanes in the vicinity of these lines.
+
+Here is an example of the result.
 
 ![alt text][image5]
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines # through # in my code in `my_other_file.py`
+The radius of curvature is done in the class funtion "Lane.__get_radius_of_curvature". The radius of curvature is a function in the coefficients of the second order polinomial fit. The average of the last 10 frames is used in this function.
+The position of the vehicle with respect to the center is calculated in the class function "Lane.update_vehicle_position()". This is done by calculating the X coordinates of the left and right lane lines at the bottom of the image and finding their average. The position of the vehicle is then the relative distance between the center of the lane and the center of the image (In the X direction). 
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+I implemented this step in the function "draw_lines()".  Here is an example of my result on a test image:
 
 ![alt text][image6]
 
@@ -117,7 +129,7 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./output_project_video.mp4)
 
 ---
 
@@ -125,4 +137,4 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+I think the pipeline is not robust enough to brightness changes. It is not also robust enough against the change in the texture of the road. I think different color spaces could be used. A correction for brightness over the whole image as a preprocessing step could also be useful  

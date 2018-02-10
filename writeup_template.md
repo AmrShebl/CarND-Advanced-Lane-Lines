@@ -19,8 +19,8 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[image1]: ./output_images/undistort_output.png "Undistorted"
-[image2]: ./output_images/undistortion_test5.jpg "Road Transformed"
+[image1]: ./output_images/undistortion_output.png "Undistorted"
+[image2]: ./output_images/undistortion_test5.png "Road Transformed"
 [image3]: ./output_images/binary_image.png "Binary Example"
 [image4]: ./output_images/warped_image.png "Warp Example"
 [image5]: ./output_images/LaneLines.png "Fit Visual"
@@ -107,6 +107,8 @@ This was done in two functions:
 Both functions take the binary image as an input. The first function uses a histogram to find a starting point to search for the lanes. Starting from these points, a square defining the area of search is used and updated to follow the lane lines from the bottom of the image to the top of it.
 
 The seacond function uses the previously determined lane lines as a starting point and searches for the lanes in the vicinity of these lines.
+
+In the two functions, a sanity check is done on the curvature of the line. They should both be in the same direction.
 
 Here is an example of the result.
 

@@ -18,7 +18,7 @@ def main():
 
     input_clip_file='project_video.mp4'
     input_clip = VideoFileClip(input_clip_file)
-    output_clip_file='output_project_video_1.mp4'
+    output_clip_file='output_project_video.mp4'
     output_frame_list=[]
     for frame in input_clip.iter_frames():
         output_frame=my_lane.process_image(frame)

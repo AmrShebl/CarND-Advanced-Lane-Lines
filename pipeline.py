@@ -101,15 +101,17 @@ class Lane():
         self.__warp_matrix=None
         self.__inverse_warp_matrix=None
         self.__vehicle_position=0
+        self.__radius_of_curvature=0
 
     def __get_radius_of_curvature(self,curve_x,curve_y, y_eval):
         ym_per_pix = 30 / 720  # meters per pixel in y dimension
-        xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+        xm_per_pix = 3.7 / 600  # meters per pixel in x dimension
         fit=np.polyfit(curve_y*ym_per_pix,curve_x*xm_per_pix,2)
+        y_eval*=ym_per_pix
         return ((1 + (2 * fit[0] * y_eval + fit[1]) ** 2) ** 1.5) / np.absolute(2 * fit[0])
 
     def update_vehicle_position(self, yMax, xMax):
-        xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+        xm_per_pix = 3.7 / 600  # meters per pixel in x dimension
         left_fit = self.left_line.get_best_fit()
         right_fit = self.right_line.get_best_fit()
         x_left = left_fit[0]*yMax**2+left_fit[1]*yMax+left_fit[2]
@@ -162,7 +164,7 @@ class Lane():
         margin = 100
         minpix = 50
         histogram = np.sum(binary_img[binary_img.shape[0] // 2:, :], axis=0)
-        plt.plot(histogram)
+        #plt.plot(histogram)
         out_img = np.dstack((binary_img, binary_img, binary_img)) * 255
         mid_point = len(histogram) // 2
         leftx_current = np.argmax(histogram[:mid_point])
@@ -258,7 +260,7 @@ class Lane():
             self.left_line.n_sucessive_failure=0
             self.right_line.n_sucessive_failure=0
             self.update_vehicle_position(yMax,xMax)
-            print(self.__vehicle_position)
+            self.update_radius_of_curvature()
 
         return ret
 
@@ -339,7 +341,7 @@ class Lane():
             self.left_line.radius_of_curvature=left_radius_of_curvature
             self.right_line.radius_of_curvature=right_radius_of_curvature
             self.update_vehicle_position(yMax, xMax)
-            print(self.__vehicle_position)
+            self.update_radius_of_curvature()
         return ret
 
     def __draw_lane(self,warped_img, shape):
@@ -365,6 +367,9 @@ class Lane():
         # Warp the blank back to original image space using inverse perspective matrix (Minv)
         newwarp = cv2.warpPerspective(color_warp, self.__inverse_warp_matrix, (shape[1], shape[0]))
         return newwarp
+
+    def update_radius_of_curvature(self):
+        self.__radius_of_curvature = 0.5 * (self.left_line.radius_of_curvature+self.right_line.radius_of_curvature)
 
 
 
@@ -405,12 +410,17 @@ class Lane():
             result = cv2.addWeighted(output_img, 1, newwarp, 0.3, 0)
         else:
             result = output_img
+        if self.__vehicle_position>0:
+            direction = 'left'
+        else:
+            direction = 'right'
+        cv2.putText(result,"Radius of Curvature = %.2f m | Vehicle is %.2f m %s of Center" % (self.__radius_of_curvature, abs(self.__vehicle_position), direction),(20,100), cv2.FONT_HERSHEY_SIMPLEX,1.0,(255,255,255),2)
+
         #result = np.dstack((255*binary_img, 255*binary_img, 255*binary_img))
 
         #result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
 
-
-        # plt.imshow(result)
+        #plt.imshow(result)
         #
         #
         # undist_img = cv2.cvtColor(undist_img, cv2.COLOR_BGR2RGB)
@@ -421,7 +431,7 @@ class Lane():
         # axes[1].imshow(warped_img, cmap='gray')
         # axes[1].set_title("Warped Image")
         #
-        # plt.show()
+        #plt.show()
         return result
 
 
